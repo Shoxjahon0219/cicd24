@@ -1,4 +1,4 @@
-name: Deploy to VPS
+name: Развертывание на VPS
 on:
   push:
     branches:
@@ -7,43 +7,52 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Kodni yuklash
+      - name: Загрузка кода
         uses: actions/checkout@v4
-      - name: SSH kalitni sozlash
+      - name: Настройка SSH-ключа
         run: |
           mkdir -p ~/.ssh
+          # Запись закрытого ключа из секретов
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          # Установка необходимых прав доступа
           chmod 600 ~/.ssh/id_rsa
         shell: bash
-      - name: Serverga deploy qilish
+      - name: Развертывание на сервере
         env:
           HOST: ${{ secrets.HOST }}
           USER: ${{ secrets.USERNAME }}
-          APP_DIR: /ci_cd
+          # ИСПРАВЛЕНИЕ: Путь изменен с /ci_cd на ~/ci_cd для обеспечения прав на запись
+          APP_DIR: ~/ci_cd 
           PORT: ${{ secrets.PORT }}
         run: |
+          # Добавление хоста в список известных
           ssh-keyscan -H $HOST >> ~/.ssh/known_hosts
+          # Выполнение команд на удаленном сервере
           ssh $USER@$HOST "
+            # Проверка, существует ли директория приложения
             if [ ! -d $APP_DIR ]; then
+              # Создание директории с флагом -p
               mkdir -p $APP_DIR
+              # Клонирование репозитория
               git clone https://github.com/Shoxjahon0219/cicd24.git $APP_DIR
               cd $APP_DIR
+              # Создание файла .env
               echo 'PORT=${PORT}' > .env
             else 
+              # Если директория существует, просто переходим и обновляем код
               cd $APP_DIR
               git pull origin main
             fi
             
-            # Убеждаемся, что мы в директории приложения ($APP_DIR)
-            # Установка зависимостей
+            # Установка зависимостей (выполняется в директории $APP_DIR)
             npm install
             
-            # Сборка приложения
+            # Сборка приложения (создаст папку dist)
             npm run build
             
-            # --- ИСПРАВЛЕНИЕ ЗДЕСЬ ---
-            # Используем абсолютный путь $APP_DIR/dist/main.js для запуска PM2.
-            # $APP_DIR будет заменен на /ci_cd
+            # --- ЗАПУСК/ПЕРЕЗАПУСК PM2 ---
+            # Пытаемся перезапустить существующий процесс, 
+            # иначе запускаем новый, используя полный путь к файлу сборки.
             pm2 restart ci_cd_app || pm2 start $APP_DIR/dist/main.js --name ci_cd_app
           "
         shell: bash
