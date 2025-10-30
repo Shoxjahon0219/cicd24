@@ -33,8 +33,17 @@ jobs:
               cd $APP_DIR
               git pull origin main
             fi
+            
+            # Убеждаемся, что мы в директории приложения ($APP_DIR)
+            # Установка зависимостей
             npm install
+            
+            # Сборка приложения
             npm run build
-            pm2 restart ci_cd_app || pm2 start dist/main.js --name ci_cd_app
+            
+            # --- ИСПРАВЛЕНИЕ ЗДЕСЬ ---
+            # Используем абсолютный путь $APP_DIR/dist/main.js для запуска PM2.
+            # $APP_DIR будет заменен на /ci_cd
+            pm2 restart ci_cd_app || pm2 start $APP_DIR/dist/main.js --name ci_cd_app
           "
         shell: bash
