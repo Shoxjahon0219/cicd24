@@ -12,13 +12,19 @@ jobs:
         run: npm run lint
   test:
     needs: [lint]
+    strategy:
+      matrix:
+        versions: [22, 20, 24]
     runs-on: ubuntu-latest
     steps:
       - name: Chekout
         uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{matrix.versions}}
       - name: Install
         run: npm ci
       - name: Test
-        env: 
+        env:
           PORT: ${{ secrets.PORT }}
         run: npm run test
